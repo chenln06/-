@@ -445,7 +445,7 @@ else:
     st.info("👈 請輸入代碼")
 
     col1, col2 = st.columns(2)
-    
+
     with col1:
         st.subheader("📖 使用說明")
         st.markdown("""
@@ -457,17 +457,19 @@ else:
             - **📊 財報 & 評分**：檢查公司的獲利能力與財務健康度。
             - **📈 雙週期走勢 & 戰術**：結合技術指標給予操作建議。
         4. **如何在手機端使用**：
-            - ** iOS (Safari 瀏覽器)**:
+            -  iOS (Safari 瀏覽器):
             1. 進入 https://5f4cx8cawucvqrc42s6o6q.streamlit.app/
             2. 點擊瀏覽器底部的 **「分享」** 圖示 (方框箭頭朝上)。
             3. 往下滑動找到並點擊 **「加入主畫面」**。
             4. 點擊右上角的 **「新增」**，桌面就會出現專屬圖示！
-            - ** Android (Chrome 瀏覽器)**:
+            -  Android (Chrome 瀏覽器):
             1. 進入 https://5f4cx8cawucvqrc42s6o6q.streamlit.app/
             2. 點擊瀏覽器右上角的 **「三個點」** 選單。
             3. 選擇 **「安裝應用程式」** 或 **「將網頁加入主畫面」**。
             4. 點擊 **「新增」** 後，即可在手機桌面一鍵啟動！
             - **💡 小撇步**: 加入主畫面後，操作起來會像真正的 App 一樣全螢幕運行，體驗更順暢喔！
+        5. 如何在電腦端使用：
+            - ** 永久保存 https://5f4cx8cawucvqrc42s6o6q.streamlit.app/**:
             """)
     with col2:
         st.subheader("📜 更新日誌")
