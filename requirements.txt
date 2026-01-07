@@ -4,3 +4,4 @@ pandas
 plotly
 deep-translator
 duckduckgo-search
+requests
