@@ -219,19 +219,50 @@ def plot_holdings_pie(inst_pct, insider_pct):
     fig.update_layout(title="持股結構", template="plotly_dark", height=300, showlegend=False, margin=dict(l=20, r=20, t=40, b=20))
     return fig
 
+# --- 3. 分析師預測繪圖函數 (根據 image_1220bd 修改並加入百分比) ---
 def plot_analyst_forecast(hist_df, targets):
-    if hist_df is None or hist_df.empty or not targets.get('mean'): return go.Figure()
+    if hist_df is None or hist_df.empty or not targets.get('mean'):
+        return go.Figure()
+    
+    # 取得現價
     curr = targets.get('current', hist_df['Close'].iloc[-1])
     mean, high, low = targets.get('mean'), targets.get('high'), targets.get('low')
-    last_date = hist_df.index[-1]; future_date = last_date + timedelta(days=365)
+    last_date = hist_df.index[-1]
+    future_date = last_date + timedelta(days=365)
+    
+    # 計算漲跌幅百分比 (新增功能)
+    def get_pct(target_price):
+        return ((target_price - curr) / curr) * 100
 
     fig = go.Figure()
+    
+    # 歷史走勢線
     fig.add_trace(go.Scatter(x=hist_df.index, y=hist_df['Close'], mode='lines', name='歷史', line=dict(color='#1E90FF', width=2)))
-    if high: fig.add_trace(go.Scatter(x=[last_date, future_date], y=[curr, high], mode='lines+markers+text', name='最高', line=dict(color='#00CC96', width=2, dash='dot'), text=[None, f"${high}"], textposition="top right"))
-    if mean: fig.add_trace(go.Scatter(x=[last_date, future_date], y=[curr, mean], mode='lines+markers+text', name='平均', line=dict(color='white', width=2, dash='dash'), text=[None, f"${mean}"], textposition="middle right"))
-    if low: fig.add_trace(go.Scatter(x=[last_date, future_date], y=[curr, low], mode='lines+markers+text', name='最低', line=dict(color='#EF553B', width=2, dash='dot'), text=[None, f"${low}"], textposition="bottom right"))
+    
+    # 最高目標 (含百分比)
+    if high:
+        pct = get_pct(high)
+        fig.add_trace(go.Scatter(x=[last_date, future_date], y=[curr, high], mode='lines+markers+text', 
+                                 name='最高', line=dict(color='#00CC96', width=2, dash='dot'),
+                                 text=[None, f"${high} ({pct:+.1f}%)"], textposition="top right"))
+    
+    # 平均目標 (含百分比)
+    if mean:
+        pct = get_pct(mean)
+        fig.add_trace(go.Scatter(x=[last_date, future_date], y=[curr, mean], mode='lines+markers+text', 
+                                 name='平均', line=dict(color='white', width=2, dash='dash'),
+                                 text=[None, f"${mean} ({pct:+.1f}%)"], textposition="middle right"))
+        
+    # 最低目標 (含百分比)
+    if low:
+        pct = get_pct(low)
+        fig.add_trace(go.Scatter(x=[last_date, future_date], y=[curr, low], mode='lines+markers+text', 
+                                 name='最低', line=dict(color='#EF553B', width=2, dash='dot'),
+                                 text=[None, f"${low} ({pct:+.1f}%)"], textposition="bottom right"))
+
     fig.add_trace(go.Scatter(x=[last_date], y=[curr], mode='markers', marker=dict(color='white', size=8), showlegend=False))
-    fig.update_layout(title=f"分析師目標價 ({targets.get('count','N/A')}位)", template="plotly_dark", height=400, margin=dict(l=20, r=50, t=50, b=20))
+    
+    fig.update_layout(title=f"分析師目標價 ({targets.get('count', 'N/A')}位)", template="plotly_dark", height=400, margin=dict(l=20, r=50, t=50, b=20))
     return fig
 
 def plot_financial_charts(q_inc):
