@@ -8,9 +8,26 @@ from deep_translator import GoogleTranslator
 from duckduckgo_search import DDGS
 import streamlit.components.v1 as components
 import requests # 新增：處理網路請求
+import google.generativeai as genai
 
 # --- 頁面設定 ---
 st.set_page_config(page_title="牛市股神", layout="wide")
+
+# 設定 Gemini API (從 Secrets 讀取)
+if "GOOGLE_API_KEY" in st.secrets:
+    genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
+    model = genai.GenerativeModel('gemini-1.5-flash')
+else:
+    st.warning("⚠️ 請在 Secrets 中設定 GOOGLE_API_KEY 才能啟動 AI 腦。")
+
+# --- 3. 右下角 AI 助理懸浮提示 ---
+st.markdown("""
+    <style>
+    .floating-ai { position: fixed; bottom: 20px; right: 20px; background-color: #FF4B4B; color: white; padding: 12px 20px; border-radius: 50px; z-index: 999; font-weight: bold; animation: pulse 2s infinite; }
+    @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
+    </style>
+    <div class="floating-ai">🤖 Gemini AI 在側邊欄</div>
+""", unsafe_allow_html=True)
 
 # --- 跑馬燈邏輯 ---
 def display_market_ticker():
@@ -58,6 +75,36 @@ if 'ticker' not in st.session_state: st.session_state.ticker = "TSM"
 # --- 側邊欄 ---
 with st.sidebar:
     st.header("鎖定目標")
+
+    st.markdown("---")
+    st.header("🤖 Gemini 投資顧問")
+    if "messages" not in st.session_state:
+        st.session_state.messages = [{"role": "assistant", "content": "你好！我是連線 Gemini 的股神助理。我可以根據當前的財報與同業數據給你建議。"}]
+
+    for msg in st.session_state.messages:
+        with st.chat_message(msg["role"]):
+            st.markdown(msg["content"])
+
+    if prompt := st.chat_input("詢問 Gemini 分析建議..."):
+        st.session_state.messages.append({"role": "user", "content": prompt})
+        with st.chat_message("user"):
+            st.markdown(prompt)
+        
+        # 組合 Context 給 AI (這就是屌的地方：AI 會知道妳正在分析哪支股票)
+        current_ticker = st.session_state.get('ticker', '未知')
+        context = f"你是一個專業美股分析師。目前使用者正在看 {current_ticker} 的資料。"
+        
+        try:
+            full_prompt = f"{context}\n使用者問：{prompt}"
+            response = model.generate_content(full_prompt)
+            ai_reply = response.text
+        except:
+            ai_reply = "抱歉,請檢查 API Key 是否正確。"
+
+        with st.chat_message("assistant"):
+            st.markdown(ai_reply)
+            st.session_state.messages.append({"role": "assistant", "content": ai_reply})
+
     with st.form(key='sniper_form'):
         ticker_input = st.text_input("輸入美股代號", value=st.session_state.ticker)
         run_btn = st.form_submit_button("開始分析")
