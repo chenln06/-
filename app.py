@@ -407,9 +407,9 @@ if st.session_state.analyzed and st.session_state.ticker:
 
                 st.metric("總分", f"{score:.1f} / 10")
 
-                if score>=8: st.success("🟢 強烈推薦")
+                if score>=7: st.success("🟢 強烈推薦")
 
-                elif score>=6: st.warning("🟡 持有")
+                elif score>=4: st.warning("🟡 持有")
 
                 else: st.error("🔴 賣出")
 
