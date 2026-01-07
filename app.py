@@ -443,3 +443,35 @@ if st.session_state.analyzed and st.session_state.ticker:
                 st.plotly_chart(plot_technical_chart(calculate_technical_indicators(hist_w, True), ticker, "週線"), use_container_width=True)
 else:
     st.info("👈 請輸入代碼")
+
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.subheader("📖 使用說明")
+        st.markdown("""
+        1. **快速搜尋**：在左側搜尋框輸入美股代號（例如：AAPL, TSLA）。
+        2. **熱門標的**：直接點擊左側「🔥 熱門市場標的」按鈕快速分析。
+        3. **四大分頁**：
+            - **🏢 公司簡介**：了解企業在做什麼。
+            - **📰 市場輿情**：查看最新的相關新聞與趨勢。
+            - **📊 財報 & 評分**：檢查公司的獲利能力與財務健康度。
+            - **📈 雙週期走勢 & 戰術**：結合技術指標給予操作建議。
+        4. **如何在手機端使用**：
+            - ** iOS (Safari 瀏覽器)**:
+            1. 進入 https://5f4cx8cawucvqrc42s6o6q.streamlit.app/
+            2. 點擊瀏覽器底部的 **「分享」** 圖示 (方框箭頭朝上)。
+            3. 往下滑動找到並點擊 **「加入主畫面」**。
+            4. 點擊右上角的 **「新增」**，桌面就會出現專屬圖示！
+            - ** Android (Chrome 瀏覽器)**:
+            1. 進入 https://5f4cx8cawucvqrc42s6o6q.streamlit.app/
+            2. 點擊瀏覽器右上角的 **「三個點」** 選單。
+            3. 選擇 **「安裝應用程式」** 或 **「將網頁加入主畫面」**。
+            4. 點擊 **「新增」** 後，即可在手機桌面一鍵啟動！
+            - **💡 小撇步**: 加入主畫面後，操作起來會像真正的 App 一樣全螢幕運行，體驗更順暢喔！
+            """)
+    with col2:
+        st.subheader("📜 更新日誌")
+        st.markdown("""
+        - **v13.9**：新增首頁使用說明與更新日誌。
+        - **v13.8**：側邊欄新增「熱門市場標的」快速點擊按鈕。
+        """)
