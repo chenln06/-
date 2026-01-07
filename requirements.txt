@@ -5,3 +5,4 @@ plotly
 deep-translator
 duckduckgo-search
 requests
+google-generativeai
