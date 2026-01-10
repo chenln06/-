@@ -171,12 +171,27 @@ def safe_get(df, col, default=0):
     try: return df.iloc[-1][col] if col in df.columns else default
     except: return default
 
-def safe_growth(df, col):
-    """計算 QoQ (季增率): 本期 vs 上一期"""
-    try:
-        if col in df.columns and len(df)>=2: return (df.iloc[-1][col]-df.iloc[-2][col])/abs(df.iloc[-2][col]) if df.iloc[-2][col]!=0 else 0
+def safe_yoy(df, preferred_col):
+    # 定義備援順序：營業利益 -> 稅前利潤 -> 淨利
+    fallback_cols = [preferred_col, 'Operating Income', 'Pretax Income', 'Net Income']
+    
+    target_col = None
+    for col in fallback_cols:
+        if col in df.columns:
+            target_col = col
+            break
+            
+    if target_col is None:
         return 0
-    except: return 0
+        
+    try:
+        # 確保有足夠的季度數據進行 YoY 計算 (通常是跟 4 季前比)
+        if len(df) >= 5:
+            growth = (df[target_col].iloc[-1] - df[target_col].iloc[-5]) / abs(df[target_col].iloc[-5])
+            return growth
+        return 0
+    except:
+        return 0
 
 def safe_yoy_growth(df, col):
     """計算 YoY (年增率): 本期 vs 4季前 (因為 get_financial_data 抓了 tail(5))"""
