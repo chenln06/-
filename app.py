@@ -166,10 +166,12 @@ def get_benchmark_data(benchmark_symbol, period="1y", interval="1d"):
     try: return yf.Ticker(benchmark_symbol).history(period=period, interval=interval)['Close']
     except: return None
 
-# --- 運算 (修復與新增) ---
-def safe_get(df, col, default=0):
-    try: return df.iloc[-1][col] if col in df.columns else default
-    except: return default
+# --- 數據安全工人：防止數據缺失導致報錯 ---
+def safe_get(df, col):
+    """安全獲取單一數值"""
+    if df is not None and col in df.columns and not df[col].empty:
+        return df[col].iloc[-1]
+    return 0
 
 def safe_yoy(df, preferred_col):
     # 定義備援順序：營業利益 -> 稅前利潤 -> 淨利
@@ -194,12 +196,13 @@ def safe_yoy(df, preferred_col):
         return 0
 
 def safe_yoy_growth(df, col):
-    """計算 YoY (年增率): 本期 vs 4季前 (因為 get_financial_data 抓了 tail(5))"""
+    """計算年度增長率 (YoY)"""
     try:
-        if col in df.columns and len(df)>=5:
-            curr = df.iloc[-1][col]
-            prev = df.iloc[-5][col]
-            return (curr - prev)/abs(prev) if prev!=0 else 0
+        if df is not None and col in df.columns and len(df) >= 5:
+            val_now = df[col].iloc[-1]
+            val_prev = df[col].iloc[-5]
+            if val_prev != 0:
+                return (val_now - val_prev) / abs(val_prev)
         return 0
     except: return 0
 
@@ -418,36 +421,34 @@ if st.session_state.analyzed and st.session_state.ticker:
             st.markdown("---")
             st.subheader("🏆 加權評分 (滿分10)")
 
-           # --- 評分計算 (修復變數名稱、函數，並自動適應金融業) ---
+          # --- 評分計算 (不簡化版：修復變數、函數與金融業相容性) ---
 
-            # 1. 偵測可用利潤欄位 (解決銀行股 Operating Income 缺失導致 KeyError 的問題)
+            # 1. 偵測可用利潤指標 (解決銀行股 Operating Income 缺失問題)
             available_cols = q_inc.columns.tolist()
             if 'Operating Income' in available_cols and q_inc['Operating Income'].iloc[-1] != 0:
                 profit_col = 'Operating Income'
                 profit_label = "營益率"
             else:
-            # 金融業通常無營業利益指標，自動改採「淨利」計算利潤趨勢
-                profit_col = 'Net Income'
+                profit_col = 'Net Income'  # 銀行業自動切換至淨利
                 profit_label = "淨利率"
 
-            # 2. 核心數值獲取
-            # 修正：確保所有引用皆為半形符號，避免出現 image_c154ef 的 SyntaxError
+            # 2. 獲取財務數值
             rev_now = safe_get(q_inc, 'Total Revenue')
             rev_g_yoy = safe_yoy_growth(q_inc, 'Total Revenue')
 
-            # 動態獲取利潤值
+            # 使用 profit_col 動態獲取利潤資訊
             op_inc_now = safe_get(q_inc, profit_col)
             op_margin_now = op_inc_now / rev_now if rev_now else 0
 
-            # 計算前一期利潤率用於趨勢對比 (QoQ)
+            # 計算前一期利潤率以判斷趨勢
             if len(q_inc) >= 2:
                 prev_rev = q_inc.iloc[-2]['Total Revenue'] if 'Total Revenue' in q_inc.columns else 0
                 prev_profit = q_inc.iloc[-2][profit_col] if profit_col in q_inc.columns else 0
-                op_margin_prev = prev_profit / prev_rev if prev_rev else 0
+                op_margin_prev = prev_profit / prev_rev if prev_rev != 0 else 0
             else:
                 op_margin_prev = 0
 
-            # 獲取其他財務比率
+            # 獲取其他資產負債數據
             gross_margin = safe_get(q_inc, 'Gross Profit') / rev_now if rev_now else 0
             net_income = safe_get(q_inc, 'Net Income')
             net_margin = net_income / rev_now if rev_now else 0
@@ -455,62 +456,50 @@ if st.session_state.analyzed and st.session_state.ticker:
             total_debt = safe_get(q_bal, 'Total Debt')
             debt_to_equity = total_debt / total_equity if total_equity else 999
             fcf = safe_get(q_cash, 'Operating Cash Flow') + safe_get(q_cash, 'Capital Expenditure')
-            eps_g_qoq = safe_growth(q_inc, 'Basic EPS')
+            eps_g_qoq = safe_growth(q_inc, 'Basic EPS')  # 正確呼叫函數
             roe = (net_income / total_equity) * 100 if total_equity else 0
 
-            # 3. 執行加權評分邏輯 (總分 10 分)
-            score = 0
-            res = []
+            # 3. 執行 10 分制加權評分
+            score = 0; res = []
 
-            # [成長動能 - 4分]
-            # 修正：將 rev_score_raw 統一為 rev_score
-            p = 1.0 if rev_score else 0
-            score += p
+            # [成長動能]
+            # 修正：將 rev_score_raw 統一改為 rev_score
+            p = 1.0 if rev_score else 0; score += p
             res.append(["收益修正", p, "1.0", "有" if p else "無", "分析師看多"])
 
-            # 修正：將 sur_score_raw 統一為 sur_score
-            p = 1.0 if sur_score >= 1 else 0
-            score += p
+            # 修正：將 sur_score_raw 統一改為 sur_score
+            p = 1.0 if sur_score >= 1 else 0; score += p
             res.append(["獲利驚喜", p, "1.0", sur_text, "Beat預期"])
 
-            p = 1.0 if rev_g_yoy > 0.20 else (0.5 if rev_g_yoy > 0.10 else 0)
-            score += p
+            p = 1.0 if rev_g_yoy > 0.20 else (0.5 if rev_g_yoy > 0.10 else 0); score += p
             res.append(["營收成長", p, "1.0", f"{rev_g_yoy:.1%}", "YoY成長"])
 
-            p = 1.0 if eps_g_qoq > 0.15 else (0.5 if eps_g_qoq > 0.05 else 0)
-            score += p
+            p = 1.0 if eps_g_qoq > 0.15 else (0.5 if eps_g_qoq > 0.05 else 0); score += p
             res.append(["獲利成長", p, "1.0", f"{eps_g_qoq:+.1%}", "QoQ成長"])
 
-            # [獲利分析 - 4分]
-            p = 1.0 if gross_margin > 0.50 else (0.5 if gross_margin > 0.30 else 0)
-            score += p
+            # [獲利分析]
+            p = 1.0 if gross_margin > 0.50 else (0.5 if gross_margin > 0.30 else 0); score += p
             res.append(["毛利率", p, "1.0", f"{gross_margin:.1%}", "定價能力"])
 
-            p = 1.0 if net_margin > 0.20 else (0.5 if net_margin > 0.10 else 0)
-            score += p
+            p = 1.0 if net_margin > 0.20 else (0.5 if net_margin > 0.10 else 0); score += p
             res.append(["淨利率", p, "1.0", f"{net_margin:.1%}", "獲利體質"])
 
-            p = 1.0 if roe > 20 else (0.5 if roe > 15 else 0)
-            score += p
+            p = 1.0 if roe > 20 else (0.5 if roe > 15 else 0); score += p
             res.append(["ROE", p, "1.0", f"{roe:.1f}%", "股東權益"])
 
-            # 使用動態指標標籤 (如果是銀行則顯示淨利率趨勢)
-            p = 1.0 if op_margin_now > op_margin_prev else 0
-            score += p
+            # 利潤趨勢：根據產業屬性自動顯示
+            p = 1.0 if op_margin_now > op_margin_prev else 0; score += p
             res.append([f"利潤趨勢({profit_label})", p, "1.0", f"{op_margin_now:.1%}", "QoQ擴大" if p else "QoQ縮減"])
 
-            # [財務健康 - 2分]
-            p = 1.0 if fcf > 0 else 0
-            score += p
+            # [財務健康]
+            p = 1.0 if fcf > 0 else 0; score += p
             res.append(["現金流量", p, "1.0", f"${fcf/1e6:,.0f}M", "自由現金流"])
 
-            p = 1.0 if debt_to_equity < 0.8 else (0.5 if debt_to_equity < 2.0 else 0)
-            score += p
+            p = 1.0 if debt_to_equity < 0.8 else (0.5 if debt_to_equity < 2.0 else 0); score += p
             res.append(["負債比", p, "1.0", f"{debt_to_equity:.2f}", "財務槓桿"])
 
-            # 4. 輸出評分表格
+            # 4. 輸出評分結果表格
             c_sc, c_dt = st.columns([1, 2])
-
             with c_sc:
 
                 st.metric("總分", f"{score:.1f} / 10")
