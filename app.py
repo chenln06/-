@@ -65,9 +65,11 @@ with st.sidebar:
         ticker_input = st.text_input("輸入美股代號", value=st.session_state.ticker)
         run_btn = st.form_submit_button("開始分析")
 
-    if run_btn:
+if run_btn and ticker_input:
         st.session_state.analyzed = True
-        st.session_state.ticker = ticker_input.upper() if ticker_input else None
+        st.session_state.ticker = ticker_input
+        update_history(ticker_input) 
+        st.rerun()
 
     st.markdown("### 🔥 熱門市場標的")
     hot_tickers = ['NVDA', 'TSM', 'AAPL', 'TSLA', 'GOOGL', 'AMZN', 'MSFT', 'META', 'SNDK']
