@@ -67,7 +67,7 @@ def update_history(ticker):
     # 插入到最前面
     st.session_state.history.insert(0, ticker)
     # 永遠只保留最後 5 筆
-    st.session_state.history = st.session_state.history[:5]
+    st.session_state.history = st.session_state.history[:6]
 
 # --- 側邊欄：依序排列 (輸入 -> 熱門 -> 驗證 -> 歷史) ---
 with st.sidebar:
@@ -87,7 +87,7 @@ with st.sidebar:
 
     # 2. 熱門市場標的 (其次常用)
     st.markdown("### 🔥 熱門市場標的")
-    hot_tickers = ['NVDA', 'TSM', 'AAPL', 'TSLA', 'GOOGL', 'AMZN', 'MSFT', 'META', 'NFLX', 'MU']
+    hot_tickers = ['NVDA', 'TSM', 'AAPL', 'TSLA', 'GOOGL', 'AMZN', 'MSFT', 'META', 'MU']
     cols = st.columns(3)
     for i, t in enumerate(hot_tickers):
         # 點擊熱門標的按鈕邏輯
