@@ -58,6 +58,17 @@ if 'ticker' not in st.session_state: st.session_state.ticker = "TSM"
 if 'history' not in st.session_state:
     st.session_state.history = []
 
+
+def update_history(ticker):
+    if not ticker: return
+    # 如果代碼已在歷史中，先移除它 (為了重新排到最前面)
+    if ticker in st.session_state.history:
+        st.session_state.history.remove(ticker)
+    # 插入到最前面
+    st.session_state.history.insert(0, ticker)
+    # 永遠只保留最後 5 筆
+    st.session_state.history = st.session_state.history[:5]
+
 # --- 側邊欄：依序排列 (輸入 -> 熱門 -> 驗證 -> 歷史) ---
 with st.sidebar:
     st.header("🎯 鎖定目標")
@@ -239,16 +250,6 @@ def calculate_technical_indicators(df, is_weekly=False):
     df['Signal'] = df['MACD'].ewm(span=9, adjust=False).mean()
     df['MACD_Hist'] = df['MACD'] - df['Signal']
     return df
-
-def update_history(ticker):
-    if not ticker: return
-    # 如果代碼已在歷史中，先移除它 (為了重新排到最前面)
-    if ticker in st.session_state.history:
-        st.session_state.history.remove(ticker)
-    # 插入到最前面
-    st.session_state.history.insert(0, ticker)
-    # 永遠只保留最後 5 筆
-    st.session_state.history = st.session_state.history[:5]
 
 # --- 繪圖 ---
 def plot_holdings_pie(inst_pct, insider_pct):
