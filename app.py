@@ -54,6 +54,9 @@ st.title("🏹 美股健康檢查室")
 # --- 初始化 Session State ---
 if 'analyzed' not in st.session_state: st.session_state.analyzed = False
 if 'ticker' not in st.session_state: st.session_state.ticker = "TSM"
+# --- 初始化搜尋歷史 (放在程式碼最前方，與 session_state 初始化一起) ---
+if 'history' not in st.session_state:
+    st.session_state.history = []
 
 # --- 側邊欄 ---
 with st.sidebar:
@@ -85,6 +88,17 @@ with st.sidebar:
     if st.session_state.analyzed and st.session_state.ticker:
         nasdaq_url = f"https://www.nasdaq.com/market-activity/stocks/{st.session_state.ticker.lower()}/financials"
         st.link_button(f"前往 Nasdaq 驗證 {st.session_state.ticker}", nasdaq_url)
+
+    if st.session_state.history:
+    st.markdown("### 🕒 最近搜尋")
+    # 使用 columns 讓按鈕並排排版，節省空間
+    h_cols = st.columns(3)
+    for idx, h_ticker in enumerate(st.session_state.history):
+        if h_cols[idx % 3].button(f"🔍 {h_ticker}", key=f"hist_{h_ticker}", use_container_width=True):
+            st.session_state.ticker = h_ticker
+            st.session_state.analyzed = True
+            st.rerun()
+    st.markdown("---")
 
 # --- 數據抓取 ---
 @st.cache_data(ttl=3600)
@@ -216,6 +230,16 @@ def calculate_technical_indicators(df, is_weekly=False):
     df['Signal'] = df['MACD'].ewm(span=9, adjust=False).mean()
     df['MACD_Hist'] = df['MACD'] - df['Signal']
     return df
+
+def update_history(ticker):
+    if not ticker: return
+    # 如果代碼已在歷史中，先移除它 (為了重新排到最前面)
+    if ticker in st.session_state.history:
+        st.session_state.history.remove(ticker)
+    # 插入到最前面
+    st.session_state.history.insert(0, ticker)
+    # 永遠只保留最後 5 筆
+    st.session_state.history = st.session_state.history[:5]
 
 # --- 繪圖 ---
 def plot_holdings_pie(inst_pct, insider_pct):
