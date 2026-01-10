@@ -90,14 +90,14 @@ with st.sidebar:
         st.link_button(f"前往 Nasdaq 驗證 {st.session_state.ticker}", nasdaq_url)
 
     if st.session_state.history:
-    st.markdown("### 🕒 最近搜尋")
-    # 使用 columns 讓按鈕並排排版，節省空間
-    h_cols = st.columns(3)
-    for idx, h_ticker in enumerate(st.session_state.history):
-        if h_cols[idx % 3].button(f"🔍 {h_ticker}", key=f"hist_{h_ticker}", use_container_width=True):
-            st.session_state.ticker = h_ticker
-            st.session_state.analyzed = True
-            st.rerun()
+        st.markdown("### 🕒 最近搜尋")
+        # 使用 columns 讓按鈕並排排版，節省空間
+        h_cols = st.columns(3)
+        for idx, h_ticker in enumerate(st.session_state.history):
+            if h_cols[idx % 3].button(f"🔍 {h_ticker}", key=f"hist_{h_ticker}", use_container_width=True):
+                st.session_state.ticker = h_ticker
+                st.session_state.analyzed = True
+                st.rerun()
     st.markdown("---")
 
 # --- 數據抓取 ---
