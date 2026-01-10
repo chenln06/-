@@ -58,49 +58,56 @@ if 'ticker' not in st.session_state: st.session_state.ticker = "TSM"
 if 'history' not in st.session_state:
     st.session_state.history = []
 
-# --- 側邊欄 ---
+# --- 側邊欄：依序排列 (輸入 -> 熱門 -> 驗證 -> 歷史) ---
 with st.sidebar:
-    st.header("鎖定目標")
-    with st.form(key='sniper_form'):
-        ticker_input = st.text_input("輸入美股代號", value=st.session_state.ticker)
-        run_btn = st.form_submit_button("開始分析")
+    st.header("🎯 鎖定目標")
 
-if run_btn and ticker_input:
-        st.session_state.analyzed = True
+    # 1. 輸入表單 (最優先)
+    with st.form(key='sniper_form'):
+        ticker_input = st.text_input("輸入美股代號", value=st.session_state.get('ticker', 'TSM')).strip().upper()
+        run_btn = st.form_submit_button("開始分析")
+    
+    # 點擊「開始分析」時觸發紀錄
+    if run_btn and ticker_input:
         st.session_state.ticker = ticker_input
-        update_history(ticker_input) 
+        st.session_state.analyzed = True
+        update_history(ticker_input) # 呼叫搬運工存入歷史
         st.rerun()
 
-st.markdown("### 🔥 熱門市場標的")
-hot_tickers = ['NVDA', 'TSM', 'AAPL', 'TSLA', 'GOOGL', 'AMZN', 'MSFT', 'META', 'SNDK']
-cols = st.columns(3)
-    for i, hot_t in enumerate(hot_tickers):
-        if cols[i % 3].button(hot_t, use_container_width=True):
-            st.session_state.ticker = hot_t
+    # 2. 熱門市場標的 (其次常用)
+    st.markdown("### 🔥 熱門市場標的")
+    hot_tickers = ['NVDA', 'TSM', 'AAPL', 'TSLA', 'GOOGL', 'AMZN', 'MSFT', 'META', 'NFLX', 'MU']
+    cols = st.columns(3)
+    for i, t in enumerate(hot_tickers):
+        # 點擊熱門標的按鈕邏輯
+        if cols[i % 3].button(t, key=f"side_{t}", use_container_width=True):
+            st.session_state.ticker = t
             st.session_state.analyzed = True
-            st.rerun() # 點擊後立即重新載入分析
+            update_history(t) # 點擊也要存入歷史
+            st.rerun()
 
-    st.markdown("---")
-    st.info("""
-    💡 **評分標準 (總分 10 分)**
-    **🚀 成長動能 (4分)**: 收益修正, 獲利驚喜, 營收成長, 獲利成長
-    **🏰 獲利分析 (4分)**: 毛利率, 淨利率, ROE, 利潤趨勢
-    **🛡️ 財務健康 (2分)**: 現金流量, 負債比
-    """)
-    if st.session_state.analyzed and st.session_state.ticker:
+    # 3. 驗證標的連結 (只有分析時顯示)
+    if st.session_state.get('analyzed') and st.session_state.get('ticker'):
+        st.markdown("---")
         nasdaq_url = f"https://www.nasdaq.com/market-activity/stocks/{st.session_state.ticker.lower()}/financials"
-        st.link_button(f"前往 Nasdaq 驗證 {st.session_state.ticker}", nasdaq_url)
+        st.link_button(f"🌐 前往 Nasdaq 驗證 {st.session_state.ticker}", nasdaq_url)
 
-    if st.session_state.history:
+    # 4. 最近搜尋紀錄 (最下方作為歷史參考)
+    if st.session_state.get('history'):
+        st.markdown("---")
         st.markdown("### 🕒 最近搜尋")
-        # 使用 columns 讓按鈕並排排版，節省空間
-        h_cols = st.columns(3)
+        h_cols = st.columns(3) # 使用 column 排版節省空間
         for idx, h_ticker in enumerate(st.session_state.history):
             if h_cols[idx % 3].button(f"🔍 {h_ticker}", key=f"hist_{h_ticker}", use_container_width=True):
                 st.session_state.ticker = h_ticker
                 st.session_state.analyzed = True
+                update_history(h_ticker) # 重新置頂
                 st.rerun()
-    st.markdown("---")
+        
+        # 額外小功能：清空紀錄按鈕
+        if st.button("🗑️ 清空歷史", use_container_width=True):
+            st.session_state.history = []
+            st.rerun()
 
 # --- 數據抓取 ---
 @st.cache_data(ttl=3600)
