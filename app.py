@@ -71,9 +71,9 @@ if run_btn and ticker_input:
         update_history(ticker_input) 
         st.rerun()
 
-    st.markdown("### 🔥 熱門市場標的")
-    hot_tickers = ['NVDA', 'TSM', 'AAPL', 'TSLA', 'GOOGL', 'AMZN', 'MSFT', 'META', 'SNDK']
-    cols = st.columns(3)
+st.markdown("### 🔥 熱門市場標的")
+hot_tickers = ['NVDA', 'TSM', 'AAPL', 'TSLA', 'GOOGL', 'AMZN', 'MSFT', 'META', 'SNDK']
+cols = st.columns(3)
     for i, hot_t in enumerate(hot_tickers):
         if cols[i % 3].button(hot_t, use_container_width=True):
             st.session_state.ticker = hot_t
