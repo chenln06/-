@@ -275,6 +275,47 @@ def plot_analyst_forecast(hist_df, targets):
     fig.update_layout(title=f"分析師目標價 ({targets.get('count', 'N/A')}位)", template="plotly_dark", height=400, margin=dict(l=20, r=50, t=50, b=20))
     return fig
 
+# --- 繪製五角/十角雷達圖函數 ---
+def plot_radar_chart(scoring_res):
+    # 1. 提取標籤與分數
+    categories = [item[0] for item in scoring_res]
+    values = [item[1] for item in scoring_res]
+    
+    # 為了讓雷達圖閉合，需要將第一個點重複加在最後
+    categories_closed = categories + [categories[0]]
+    values_closed = values + [values[0]]
+
+    fig = go.Figure()
+
+    fig.add_trace(go.Scatterpolar(
+        r=values_closed,
+        theta=categories_closed,
+        fill='toself',
+        fillcolor='rgba(31, 119, 180, 0.4)', # 藍色半透明填充
+        line=dict(color='#1f77b4', width=2),
+        marker=dict(size=8),
+        name='個股能力評分'
+    ))
+
+    fig.update_layout(
+        polar=dict(
+            radialaxis=dict(
+                visible=True,
+                range=[0, 1], # 分數區間 0~1
+                tickfont=dict(size=10)
+            ),
+            angularaxis=dict(
+                tickfont=dict(size=12, color="white")
+            ),
+            bgcolor="rgba(0,0,0,0)" # 透明背景
+        ),
+        showlegend=False,
+        template="plotly_dark",
+        height=450,
+        margin=dict(l=80, r=80, t=20, b=20)
+    )
+    return fig
+
 def plot_financial_charts(q_inc):
     dates = q_inc.index.strftime('%Y-%m')
     fig1 = make_subplots(specs=[[{"secondary_y": True}]])
@@ -502,6 +543,8 @@ if st.session_state.analyzed and st.session_state.ticker:
                 elif score>=4: st.warning("🟡 持有")
 
                 else: st.error("🔴 賣出")
+
+                st.plotly_chart(plot_radar_chart(res), use_container_width=True)
 
             with c_dt:
 
