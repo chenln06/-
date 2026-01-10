@@ -494,41 +494,57 @@ if st.session_state.analyzed and st.session_state.ticker:
             roe = (net_income / total_equity) * 100 if total_equity else 0
 
             # 3. 執行加權評分 (總分 10 分)
-            score = 0
-            res = []
+            # --- v21.0 全產業平衡評分標準 (不再拘泥於成長股標準) ---
 
-            # [成長動能]
+            score = 0; res = []
+
+            # 1. 收益修正 (維持分析師共識)
             p = 1.0 if rev_score else 0; score += p
             res.append(["收益修正", p, "1.0", "有" if p else "無", "分析師看多"])
 
+            # 2. 獲利驚喜 (Beat預期)
             p = 1.0 if sur_score >= 1 else 0; score += p
             res.append(["獲利驚喜", p, "1.0", sur_text, "Beat預期"])
 
-            p = 1.0 if rev_g_yoy > 0.20 else (0.5 if rev_g_yoy > 0.10 else 0); score += p
+            # 3. 營收成長 (YoY) - 標準放寬：12%即滿分，5%給半分
+            p = 1.0 if rev_g_yoy > 0.12 else (0.5 if rev_g_yoy > 0.05 else 0)
+            score += p
             res.append(["營收成長", p, "1.0", f"{rev_g_yoy:.1%}", "YoY成長"])
 
-            p = 1.0 if eps_g_qoq > 0.15 else (0.5 if eps_g_qoq > 0.05 else 0); score += p
+            # 4. 獲利成長 (QoQ) - 標準放寬：10%即滿分，3%給半分
+            p = 1.0 if eps_g_qoq > 0.10 else (0.5 if eps_g_qoq > 0.03 else 0)
+            score += p
             res.append(["獲利成長", p, "1.0", f"{eps_g_qoq:+.1%}", "QoQ成長"])
 
-            # [獲利分析]
-            p = 1.0 if gross_margin > 0.50 else (0.5 if gross_margin > 0.30 else 0); score += p
+            # 5. 毛利率 - 標準放寬：40%即滿分，20%給半分
+            p = 1.0 if gross_margin > 0.40 else (0.5 if gross_margin > 0.20 else 0)
+            score += p
             res.append(["毛利率", p, "1.0", f"{gross_margin:.1%}", "定價能力"])
 
-            p = 1.0 if net_margin > 0.20 else (0.5 if net_margin > 0.10 else 0); score += p
+            # 6. 淨利率 - 標準放寬：15%即滿分，8%給半分
+            p = 1.0 if net_margin > 0.15 else (0.5 if net_margin > 0.08 else 0)
+            score += p
             res.append(["淨利率", p, "1.0", f"{net_margin:.1%}", "獲利體質"])
 
-            p = 1.0 if roe > 20 else (0.5 if roe > 15 else 0); score += p
+            # 7. ROE (修正 GOOGL 的 0 分問題)
+            # 標準修改：標普500平均約12-15%，我們設定15%滿分，8%即給半分
+            p = 1.0 if roe > 15 else (0.5 if roe > 8 else 0)
+            score += p
             res.append(["ROE", p, "1.0", f"{roe:.1f}%", "股東權益"])
 
-            # 動態判斷利潤趨勢 (金融業會自動顯示淨利率)
-            p = 1.0 if op_margin_now > op_margin_prev else 0; score += p
-            res.append([f"利潤趨勢({profit_label})", p, "1.0", f"{op_margin_now:.1%}", "QoQ擴大" if p else "QoQ縮減"])
+            # 8. 利潤趨勢 (修正 image_6dc975.jpg 中的 0 分問題)
+            # 邏輯更新：即使 QoQ 縮減，但只要當前利潤率仍高於 25%，依然給半分獎勵獲利體質
+            p = 1.0 if op_margin_now > op_margin_prev else (0.5 if op_margin_now > 0.25 else 0)
+            score += p
+            res.append([f"利潤趨勢({profit_label})", p, "1.0", f"{op_margin_now:.1%}", "QoQ擴大" if op_margin_now > op_margin_prev else "高水準維持"])
 
-            # [財務健康]
+            # 9. 現金流量
             p = 1.0 if fcf > 0 else 0; score += p
             res.append(["現金流量", p, "1.0", f"${fcf/1e6:,.0f}M", "自由現金流"])
 
-            p = 1.0 if debt_to_equity < 0.8 else (0.5 if debt_to_equity < 2.0 else 0); score += p
+            # 10. 負債比 (財務槓桿)
+            p = 1.0 if debt_to_equity < 1.0 else (0.5 if debt_to_equity < 2.5 else 0)
+            score += p
             res.append(["負債比", p, "1.0", f"{debt_to_equity:.2f}", "財務槓桿"])
 
             # 4. 輸出評分表格
