@@ -84,7 +84,6 @@ with st.sidebar:
         st.session_state.analyzed = True
         update_history(ticker_input) # 呼叫搬運工存入歷史
         st.rerun()
-
     # 2. 熱門市場標的 (其次常用)
     st.markdown("### 🔥 熱門市場標的")
     hot_tickers = ['NVDA', 'TSM', 'AAPL', 'TSLA', 'GOOGL', 'AMZN', 'MSFT', 'META', 'MU']
@@ -96,13 +95,11 @@ with st.sidebar:
             st.session_state.analyzed = True
             update_history(t) # 點擊也要存入歷史
             st.rerun()
-
     # 3. 驗證標的連結 (只有分析時顯示)
     if st.session_state.get('analyzed') and st.session_state.get('ticker'):
         st.markdown("---")
         nasdaq_url = f"https://www.nasdaq.com/market-activity/stocks/{st.session_state.ticker.lower()}/financials"
         st.link_button(f"🌐 前往 Nasdaq 驗證 {st.session_state.ticker}", nasdaq_url)
-
     # 4. 最近搜尋紀錄 (最下方作為歷史參考)
     if st.session_state.get('history'):
         st.markdown("---")
@@ -113,8 +110,7 @@ with st.sidebar:
                 st.session_state.ticker = h_ticker
                 st.session_state.analyzed = True
                 update_history(h_ticker) # 重新置頂
-                st.rerun()
-        
+                st.rerun()        
         # 額外小功能：清空紀錄按鈕
         if st.button("🗑️ 清空歷史", use_container_width=True):
             st.session_state.history = []
