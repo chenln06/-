@@ -99,14 +99,14 @@ with st.sidebar:
     if st.session_state.get('analyzed') and st.session_state.get('ticker'):
         st.markdown("---")
         nasdaq_url = f"https://www.nasdaq.com/market-activity/stocks/{st.session_state.ticker.lower()}/financials"
-        st.link_button(f"🌐 前往 Nasdaq 驗證 {st.session_state.ticker}", nasdaq_url)
+        st.link_button(f"前往 Nasdaq 驗證 {st.session_state.ticker}", nasdaq_url)
     # 4. 最近搜尋紀錄 (最下方作為歷史參考)
     if st.session_state.get('history'):
         st.markdown("---")
         st.markdown("### 🕒 最近搜尋")
         h_cols = st.columns(3) # 使用 column 排版節省空間
         for idx, h_ticker in enumerate(st.session_state.history):
-            if h_cols[idx % 3].button(f"🔍 {h_ticker}", key=f"hist_{h_ticker}", use_container_width=True):
+            if h_cols[idx % 3].button(f"{h_ticker}", key=f"hist_{h_ticker}", use_container_width=True):
                 st.session_state.ticker = h_ticker
                 st.session_state.analyzed = True
                 update_history(h_ticker) # 重新置頂
