@@ -623,6 +623,24 @@ if st.session_state.analyzed and st.session_state.ticker:
             with t2:
                 st.plotly_chart(plot_technical_chart(calculate_technical_indicators(hist_w, True), ticker, "週線"), use_container_width=True)
         with tab5:
+# --- 第一步：定義「計算大腦」(這要在呼叫前定義) ---
+            def calculate_max_pain_internal(ticker_obj, expiry):
+                """計算莊家最賺錢的點位"""
+                try:
+                    options = ticker_obj.option_chain(expiry)
+                    calls, puts = options.calls, options.puts
+                    strikes = sorted(set(calls['strike']).union(set(puts['strike'])))
+            
+                    pain_results = []
+                    for s in strikes:
+                        # 股價落在 s 時，Call 賣方的痛苦值
+                        c_p = (s - calls[calls['strike'] < s]['strike']) * calls[calls['strike'] < s]['openInterest']
+                        # 股價落在 s 時，Put 賣方的痛苦值
+                        p_p = (puts[puts['strike'] > s]['strike'] - s) * puts[puts['strike'] > s]['openInterest']
+                        pain_results.append(c_p.sum() + p_p.sum())
+                    return strikes[np.argmin(pain_results)]
+                except:
+            return None
             st.subheader("🔮 期權鏈與波動率分析")
             tk = yf.Ticker(ticker)
     # 小白百科全書
