@@ -8,6 +8,7 @@ from deep_translator import GoogleTranslator
 from duckduckgo_search import DDGS
 import streamlit.components.v1 as components
 import requests # 新增：處理網路請求
+import numpy as np
 
 # --- 頁面設定 ---
 st.set_page_config(page_title="牛市股神", layout="wide")
