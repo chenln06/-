@@ -624,7 +624,7 @@ if st.session_state.analyzed and st.session_state.ticker:
                 st.plotly_chart(plot_technical_chart(calculate_technical_indicators(hist_w, True), ticker, "週線"), use_container_width=True)
         with tab5:
             st.subheader("🔮 期權鏈與波動率分析")
-    
+            tk = yf.Ticker(ticker)
     # 小白百科全書
             with st.expander("📖 期權小白必讀：專業術語白話文"):
                 st.markdown("""
