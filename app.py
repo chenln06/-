@@ -704,8 +704,8 @@ if st.session_state.analyzed and st.session_state.ticker:
                     else:
                         st.success("股價目前處於莊家預期範圍內，走勢相對穩定。")
 
-        except Exception as e:
-            st.error(f"分析失敗，錯誤訊息: {e}")
+            except Exception as e:
+                st.error(f"分析失敗，錯誤訊息: {e}")
 else:
     st.info("👈 請輸入代碼")
 
