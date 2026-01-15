@@ -433,7 +433,7 @@ def generate_strategy(score, current_price, ma50):
 # --- 主程式 ---
 if st.session_state.analyzed and st.session_state.ticker:
     ticker = st.session_state.ticker
-    tab1, tab2, tab3, tab4, tab5 = st.tabs(["🏢 公司簡介", "📰 市場輿情", "📊 財報 & 評分", "📈 雙週期走勢 & 戰術", ])
+    tab1, tab2, tab3, tab4, tab5 = st.tabs(["🏢 公司簡介", "📰 市場輿情", "📊 財報 & 評分", "📈 雙週期走勢 & 戰術", "🔮 期權鏈與波動率分析"])
 
     with st.spinner(f"正在全速運算 {ticker} ..."):
         profile, inst_pct, insider_pct, targets = get_company_profile(ticker)
@@ -623,7 +623,7 @@ if st.session_state.analyzed and st.session_state.ticker:
             with t2:
                 st.plotly_chart(plot_technical_chart(calculate_technical_indicators(hist_w, True), ticker, "週線"), use_container_width=True)
         with tab5:
-            st.subheader("🔮 莊家底牌：期權鏈與波動率分析")
+            st.subheader("🔮 期權鏈與波動率分析")
     
     # 小白百科全書
             with st.expander("📖 期權小白必讀：專業術語白話文"):
