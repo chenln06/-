@@ -560,7 +560,7 @@ if st.session_state.analyzed and st.session_state.ticker:
                         fig_oi.add_vline(x=max_pain, line_dash="dot", line_color="white", annotation_text="Max Pain")
                     fig_oi.update_layout(title=f"{ticker} 籌碼攻防圖 ({selected_expiry})", xaxis_title="履約價 (Strike)", yaxis_title="未平倉合約數 (OI)", barmode='group', template="plotly_dark", height=500)
                     st.plotly_chart(fig_oi, use_container_width=True)
-                    st.markdown("### 🏹 股神實戰診斷")
+                    st.markdown("### 🏹 實戰建議")
                     if max_pain:
                         if current_price > max_pain + 10:
                             st.warning(f"當前股價顯著高於最大痛點 (${max_pain})，結算前小心大戶『向下砸盤』。")
@@ -572,8 +572,10 @@ if st.session_state.analyzed and st.session_state.ticker:
                 st.error(f"期權分析失敗: {e}")
 
 else:
-    st.info("👈 請輸入代碼")
+    st.info("👈 請於左側方框中輸入代碼")
+
     col1, col2 = st.columns(2)
+
     with col1:
         st.subheader("📖 使用說明")
         st.markdown("""
@@ -585,13 +587,29 @@ else:
             - **📊 財報 & 評分**：檢查公司的獲利能力與財務健康度。
             - **📈 雙週期走勢 & 戰術**：結合技術指標給予操作建議。
         4. **如何在手機端使用**：
-            - iOS (Safari 瀏覽器): 加入主畫面。
-            - Android (Chrome 瀏覽器): 安裝應用程式。
-        """)
+            -  iOS (Safari 瀏覽器):
+            1. 進入 https://5f4cx8cawucvqrc42s6o6q.streamlit.app/
+            2. 點擊瀏覽器底部的 **「分享」** 圖示 (方框箭頭朝上)。
+            3. 往下滑動找到並點擊 **「加入主畫面」**。
+            4. 點擊右上角的 **「新增」**，桌面就會出現專屬圖示！
+            -  Android (Chrome 瀏覽器):
+            1. 進入 https://5f4cx8cawucvqrc42s6o6q.streamlit.app/
+            2. 點擊瀏覽器右上角的 **「三個點」** 選單。
+            3. 選擇 **「安裝應用程式」** 或 **「將網頁加入主畫面」**。
+            4. 點擊 **「新增」** 後，即可在手機桌面一鍵啟動！
+            - **💡 小撇步**: 加入主畫面後，操作起來會像真正的 App 一樣全螢幕運行，體驗更順暢喔！
+        5. 如何在電腦端使用：
+            - ** 永久保存 https://5f4cx8cawucvqrc42s6o6q.streamlit.app/**:
+            """)
     with col2:
         st.subheader("📜 更新日誌")
         st.markdown("""
+        - **v14.1**：新增期權鏈分析。(2026/01/15)
         - **v14.0(更新進行中)**：新增Gemini作為投資助理。
-        - **v13.13**：新增搜尋紀錄(至多6筆)。
-        - **v13.12**：新增評分雷達圖。
+        - **v13.13**：新增搜尋紀錄(至多6筆)與清空歷史紀錄功能。(2026/01/10)
+        - **v13.12**：新增評分雷達圖與修正過於嚴苛的評分標準。(2026/01/10)
+        - **v13.11**：修復金融業報錯問題。(2026/01/10)
+        - **v13.10**：於分析師預測價旁標註出潛在漲跌幅空間百分比。(2026/01/08)
+        - **v13.9**：新增首頁使用說明與更新日誌。
+        - **v13.8**：側邊欄新增「熱門市場標的」快速點擊按鈕。
         """)
