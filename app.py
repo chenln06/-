@@ -622,15 +622,15 @@ if st.session_state.analyzed and st.session_state.ticker:
                 st.plotly_chart(plot_technical_chart(df_daily, ticker, "日線", benchs_d), use_container_width=True)
             with t2:
                 st.plotly_chart(plot_technical_chart(calculate_technical_indicators(hist_w, True), ticker, "週線"), use_container_width=True)
-        with tab5:
-# --- 第一步：定義「計算大腦」(這要在呼叫前定義) ---
-            def calculate_max_pain_internal(ticker_obj, expiry):
-                """計算莊家最賺錢的點位"""
+with tab5:
+            # --- 第一步：定義「計算大腦」(內部函數) ---
+            def calculate_max_pain_logic(ticker_obj, expiry):
+                """計算莊家最賺錢的點位 (Max Pain)"""
                 try:
                     options = ticker_obj.option_chain(expiry)
                     calls, puts = options.calls, options.puts
                     strikes = sorted(set(calls['strike']).union(set(puts['strike'])))
-            
+                    
                     pain_results = []
                     for s in strikes:
                         # 股價落在 s 時，Call 賣方的痛苦值
@@ -640,10 +640,14 @@ if st.session_state.analyzed and st.session_state.ticker:
                         pain_results.append(c_p.sum() + p_p.sum())
                     return strikes[np.argmin(pain_results)]
                 except:
-            return None
-            st.subheader("🔮 期權鏈與波動率分析")
+                    return None
+
+            st.header(f"🔮 {ticker} 期權鏈與波動率分析")
+            
+            # 使用主程式已經建立好的 yfinance 物件
             tk = yf.Ticker(ticker)
-    # 小白百科全書
+
+            # 小白百科全書
             with st.expander("📖 期權小白必讀：專業術語白話文"):
                 st.markdown("""
                 * **1. 最大痛點 (Max Pain)**：莊家（大戶）最希望股價結算的位子。因為在那裡，大戶賠最少，散戶虧最多。股價常會向此靠攏。
@@ -653,77 +657,79 @@ if st.session_state.analyzed and st.session_state.ticker:
                 """)
 
             try:
-        # 取得到期日
+                # 取得到期日
                 expiry_dates = tk.options
                 if not expiry_dates:
-                    st.warning("該股票目前無期權交易數據。")
+                    st.warning("⚠️ 該股票目前無期權交易數據。")
                 else:
-                    selected_expiry = st.selectbox("選擇結算日期 (越近的代表短線主力動向)", expiry_dates)
-            
-            # 抓取期權鏈數據
+                    selected_expiry = st.selectbox("📅 選擇結算日期 (越近的代表短線主力動向)", expiry_dates)
+                    
+                    # 抓取期權鏈數據
                     opts = tk.option_chain(selected_expiry)
                     calls, puts = opts.calls, opts.puts
-                    current_price = tk.history(period="1d")['Close'].iloc[-1]
-            
-            # --- 數據運算 ---
-                    max_pain = calculate_max_pain(tk, selected_expiry)
+                    # 獲取最新股價 (從之前抓過的歷史數據中取最後一筆)
+                    current_price = hist_d['Close'].iloc[-1]
+                    
+                    # --- 數據運算 ---
+                    # 修正：呼叫正確的函數名稱
+                    max_pain = calculate_max_pain_logic(tk, selected_expiry)
                     pcr = puts['openInterest'].sum() / calls['openInterest'].sum()
-            
-            # 計算平均 IV
+                    
+                    # 計算平均 IV
                     avg_iv = (calls['impliedVolatility'].mean() + puts['impliedVolatility'].mean()) / 2 * 100
-            
-            # 壓力與支撐 (OI 最大值)
+                    
+                    # 壓力與支撐 (OI 最大值)
                     res_strike = calls.loc[calls['openInterest'].idxmax(), 'strike']
                     sup_strike = puts.loc[puts['openInterest'].idxmax(), 'strike']
 
-            # --- 儀表板 ---
+                    # --- 儀表板 ---
                     st.markdown("---")
                     c1, c2, c3, c4 = st.columns(4)
-            
+                    
                     c1.metric("當前股價", f"${current_price:.2f}")
-                    c2.metric("最大痛點", f"${max_pain}")
+                    c2.metric("最大痛點", f"${max_pain}" if max_pain else "N/A")
                     c3.metric("多空情緒 (PCR)", f"{pcr:.2f}")
                     c4.metric("隱含波動率 (IV)", f"{avg_iv:.1f}%")
 
-            # 警示區
+                    # 警示區
                     if avg_iv > 60:
-                        st.error(f"⚠️ **IV 過高 ({avg_iv:.1f}%)**：目前期權價格極貴，新手不建議買入，小心『波動率衰減』吃掉獲利。")
+                        st.error(f"⚠️ **IV 過高 ({avg_iv:.1f}%)**：目前期權價格極貴，小心『波動率衰減』。")
                     elif avg_iv < 30:
-                        st.success(f"✅ **IV 偏低 ({avg_iv:.1f}%)**：目前市場平靜，期權保險費相對便宜。")
+                        st.success(f"✅ **IV 偏低 ({avg_iv:.1f}%)**：目前市場平靜，期權相對便宜。")
 
                     st.write(f"🛑 **上方重壓區：${res_strike}** | 🟢 **下方強支撐：${sup_strike}**")
 
-            # --- 視覺化 OI 分佈圖 ---
-                    fig = go.Figure()
-                    fig.add_trace(go.Bar(x=calls['strike'], y=calls['openInterest'], name='看漲 OI (Call)', marker_color='#26a69a'))
-                    fig.add_trace(go.Bar(x=puts['strike'], y=puts['openInterest'], name='看跌 OI (Put)', marker_color='#ef5350'))
-            
-            # 加入輔助線
-                    fig.add_vline(x=current_price, line_dash="dash", line_color="yellow", annotation_text="現價")
+                    # --- 視覺化 OI 分佈圖 ---
+                    fig_oi = go.Figure()
+                    fig_oi.add_trace(go.Bar(x=calls['strike'], y=calls['openInterest'], name='看漲 OI (Call)', marker_color='#26a69a'))
+                    fig_oi.add_trace(go.Bar(x=puts['strike'], y=puts['openInterest'], name='看跌 OI (Put)', marker_color='#ef5350'))
+                    
+                    fig_oi.add_vline(x=current_price, line_dash="dash", line_color="yellow", annotation_text="現價")
                     if max_pain:
-                        fig.add_vline(x=max_pain, line_dash="dot", line_color="white", annotation_text="Max Pain")
-            
-                    fig.update_layout(
+                        fig_oi.add_vline(x=max_pain, line_dash="dot", line_color="white", annotation_text="Max Pain")
+                    
+                    fig_oi.update_layout(
                         title=f"{ticker} 籌碼攻防圖 ({selected_expiry})",
                         xaxis_title="履約價 (Strike)",
-                        yaxis_title="未平倉合約數 (Open Interest)",
+                        yaxis_title="未平倉合約數 (OI)",
                         barmode='group',
                         template="plotly_dark",
                         height=500
                     )
-                    st.plotly_chart(fig, use_container_width=True)
+                    st.plotly_chart(fig_oi, use_container_width=True)
 
-            # --- 股神一鍵診斷 ---
+                    # --- 股神一鍵診斷 ---
                     st.markdown("### 🏹 股神實戰診斷")
-                    if current_price > max_pain + 10:
-                        st.warning(f"當前股價顯著高於最大痛點 (${max_pain})，結算前小心大戶『向下砸盤』，減少賠付。")
-                    elif current_price < max_pain - 10:
-                        st.info(f"當前股價低於最大痛點 (${max_pain})，結算前大戶有動力『向上拉抬』。")
-                    else:
-                        st.success("股價目前處於莊家預期範圍內，走勢相對穩定。")
+                    if max_pain:
+                        if current_price > max_pain + 10:
+                            st.warning(f"當前股價顯著高於最大痛點 (${max_pain})，結算前小心大戶『向下砸盤』。")
+                        elif current_price < max_pain - 10:
+                            st.info(f"當前股價低於最大痛點 (${max_pain})，結算前大戶有動力『向上拉抬』。")
+                        else:
+                            st.success("股價目前處於莊家預期範圍內，走勢相對穩定。")
 
             except Exception as e:
-                st.error(f"分析失敗，錯誤訊息: {e}")
+                st.error(f"期權分析失敗: {e}")
 else:
     st.info("👈 請輸入代碼")
 
