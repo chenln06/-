@@ -730,6 +730,7 @@ with tab5:
 
             except Exception as e:
                 st.error(f"期權分析失敗: {e}")
+
 else:
     st.info("👈 請輸入代碼")
 
