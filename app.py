@@ -55,69 +55,60 @@ st.title("🏹 美股健康檢查室")
 # --- 初始化 Session State ---
 if 'analyzed' not in st.session_state: st.session_state.analyzed = False
 if 'ticker' not in st.session_state: st.session_state.ticker = "TSM"
-# --- 初始化搜尋歷史 (放在程式碼最前方，與 session_state 初始化一起) ---
 if 'history' not in st.session_state:
     st.session_state.history = []
 
-
 def update_history(ticker):
     if not ticker: return
-    # 如果代碼已在歷史中，先移除它 (為了重新排到最前面)
     if ticker in st.session_state.history:
         st.session_state.history.remove(ticker)
-    # 插入到最前面
     st.session_state.history.insert(0, ticker)
-    # 永遠只保留最後 5 筆
     st.session_state.history = st.session_state.history[:6]
 
-# --- 側邊欄：依序排列 (輸入 -> 熱門 -> 驗證 -> 歷史) ---
+# --- 側邊欄 ---
 with st.sidebar:
     st.header("🎯 鎖定目標")
-
-    # 1. 輸入表單 (最優先)
     with st.form(key='sniper_form'):
         ticker_input = st.text_input("輸入美股代號", value=st.session_state.get('ticker', 'TSM')).strip().upper()
         run_btn = st.form_submit_button("開始分析")
     
-    # 點擊「開始分析」時觸發紀錄
     if run_btn and ticker_input:
         st.session_state.ticker = ticker_input
         st.session_state.analyzed = True
-        update_history(ticker_input) # 呼叫搬運工存入歷史
+        update_history(ticker_input)
         st.rerun()
-    # 2. 熱門市場標的 (其次常用)
+
     st.markdown("### 🔥 熱門市場標的")
     hot_tickers = ['NVDA', 'TSM', 'AAPL', 'TSLA', 'GOOGL', 'AMZN', 'MSFT', 'META', 'MU']
     cols = st.columns(3)
     for i, t in enumerate(hot_tickers):
-        # 點擊熱門標的按鈕邏輯
         if cols[i % 3].button(t, key=f"side_{t}", use_container_width=True):
             st.session_state.ticker = t
             st.session_state.analyzed = True
-            update_history(t) # 點擊也要存入歷史
+            update_history(t)
             st.rerun()
-    # 3. 驗證標的連結 (只有分析時顯示)
+
     if st.session_state.get('analyzed') and st.session_state.get('ticker'):
         st.markdown("---")
         nasdaq_url = f"https://www.nasdaq.com/market-activity/stocks/{st.session_state.ticker.lower()}/financials"
         st.link_button(f"前往 Nasdaq 驗證 {st.session_state.ticker}", nasdaq_url)
-    # 4. 最近搜尋紀錄 (最下方作為歷史參考)
+
     if st.session_state.get('history'):
         st.markdown("---")
         st.markdown("### 🕒 最近搜尋")
-        h_cols = st.columns(3) # 使用 column 排版節省空間
+        h_cols = st.columns(3)
         for idx, h_ticker in enumerate(st.session_state.history):
             if h_cols[idx % 3].button(f"{h_ticker}", key=f"hist_{h_ticker}", use_container_width=True):
                 st.session_state.ticker = h_ticker
                 st.session_state.analyzed = True
-                update_history(h_ticker) # 重新置頂
+                update_history(h_ticker)
                 st.rerun()        
-        # 額外小功能：清空紀錄按鈕
+        
         if st.button("🗑️ 清空歷史紀錄", use_container_width=True):
             st.session_state.history = []
             st.rerun()
 
-# --- 數據抓取 ---
+# --- 數據抓取函數 ---
 @st.cache_data(ttl=3600)
 def get_company_profile(symbol):
     try:
@@ -144,7 +135,6 @@ def get_market_data(symbol):
 def get_financial_data(symbol):
     stock = yf.Ticker(symbol)
     try:
-        # 取最後 5 季以便計算 YoY (本期 vs 4季前)
         return stock.quarterly_financials.T.sort_index().tail(5), \
                stock.quarterly_balance_sheet.T.sort_index().tail(5), \
                stock.quarterly_cashflow.T.sort_index().tail(5)
@@ -170,7 +160,6 @@ def get_estimates_data(symbol):
     except: pass
     return rev_score, sur_score, sur_text
 
-# --- 新聞抓取 ---
 @st.cache_data(ttl=3600)
 def get_news_data(symbol):
     results = []
@@ -197,16 +186,13 @@ def get_benchmark_data(benchmark_symbol, period="1y", interval="1d"):
     try: return yf.Ticker(benchmark_symbol).history(period=period, interval=interval)['Close']
     except: return None
 
-# --- 定義數據安全工具箱 (解決 NameError 的關鍵) ---
-
+# --- 工具箱 ---
 def safe_get(df, col):
-    """安全獲取最新的財務數值"""
     if df is not None and col in df.columns and not df[col].empty:
         return df[col].iloc[-1]
     return 0
 
 def safe_yoy_growth(df, col):
-    """計算年度增長率 (YoY)，解決數據不足 5 季的問題"""
     try:
         if df is not None and col in df.columns and len(df) >= 5:
             now = df[col].iloc[-1]
@@ -214,11 +200,9 @@ def safe_yoy_growth(df, col):
             if last_year != 0:
                 return (now - last_year) / abs(last_year)
         return 0
-    except:
-        return 0
+    except: return 0
 
 def safe_growth(df, col):
-    """計算季度增長率 (QoQ)，解決 image_6d4a6e 報錯問題"""
     try:
         if df is not None and col in df.columns and len(df) >= 2:
             now = df[col].iloc[-1]
@@ -226,8 +210,7 @@ def safe_growth(df, col):
             if prev != 0:
                 return (now - prev) / abs(prev)
         return 0
-    except:
-        return 0
+    except: return 0
 
 def calculate_technical_indicators(df, is_weekly=False):
     if df.empty: return df
@@ -248,7 +231,7 @@ def calculate_technical_indicators(df, is_weekly=False):
     df['MACD_Hist'] = df['MACD'] - df['Signal']
     return df
 
-# --- 繪圖 ---
+# --- 繪圖函數 ---
 def plot_holdings_pie(inst_pct, insider_pct):
     if inst_pct < 1: inst_pct *= 100
     if insider_pct < 1: insider_pct *= 100
@@ -260,90 +243,54 @@ def plot_holdings_pie(inst_pct, insider_pct):
     fig.update_layout(title="持股結構", template="plotly_dark", height=300, showlegend=False, margin=dict(l=20, r=20, t=40, b=20))
     return fig
 
-# --- 3. 分析師預測繪圖函數 (根據 image_1220bd 修改並加入百分比) ---
 def plot_analyst_forecast(hist_df, targets):
     if hist_df is None or hist_df.empty or not targets.get('mean'):
         return go.Figure()
-    
-    # 取得現價
     curr = targets.get('current', hist_df['Close'].iloc[-1])
     mean, high, low = targets.get('mean'), targets.get('high'), targets.get('low')
     last_date = hist_df.index[-1]
     future_date = last_date + timedelta(days=365)
-    
-    # 計算漲跌幅百分比 (新增功能)
     def get_pct(target_price):
         return ((target_price - curr) / curr) * 100
-
     fig = go.Figure()
-    
-    # 歷史走勢線
     fig.add_trace(go.Scatter(x=hist_df.index, y=hist_df['Close'], mode='lines', name='歷史', line=dict(color='#1E90FF', width=2)))
-    
-    # 最高目標 (含百分比)
     if high:
         pct = get_pct(high)
         fig.add_trace(go.Scatter(x=[last_date, future_date], y=[curr, high], mode='lines+markers+text', 
                                  name='最高', line=dict(color='#00CC96', width=2, dash='dot'),
                                  text=[None, f"${high} ({pct:+.1f}%)"], textposition="top right"))
-    
-    # 平均目標 (含百分比)
     if mean:
         pct = get_pct(mean)
         fig.add_trace(go.Scatter(x=[last_date, future_date], y=[curr, mean], mode='lines+markers+text', 
                                  name='平均', line=dict(color='white', width=2, dash='dash'),
                                  text=[None, f"${mean} ({pct:+.1f}%)"], textposition="middle right"))
-        
-    # 最低目標 (含百分比)
     if low:
         pct = get_pct(low)
         fig.add_trace(go.Scatter(x=[last_date, future_date], y=[curr, low], mode='lines+markers+text', 
                                  name='最低', line=dict(color='#EF553B', width=2, dash='dot'),
                                  text=[None, f"${low} ({pct:+.1f}%)"], textposition="bottom right"))
-
     fig.add_trace(go.Scatter(x=[last_date], y=[curr], mode='markers', marker=dict(color='white', size=8), showlegend=False))
-    
     fig.update_layout(title=f"分析師目標價 ({targets.get('count', 'N/A')}位)", template="plotly_dark", height=400, margin=dict(l=20, r=50, t=50, b=20))
     return fig
 
-# --- 繪製五角/十角雷達圖函數 ---
 def plot_radar_chart(scoring_res):
-    # 1. 提取標籤與分數
     categories = [item[0] for item in scoring_res]
     values = [item[1] for item in scoring_res]
-    
-    # 為了讓雷達圖閉合，需要將第一個點重複加在最後
     categories_closed = categories + [categories[0]]
     values_closed = values + [values[0]]
-
     fig = go.Figure()
-
     fig.add_trace(go.Scatterpolar(
-        r=values_closed,
-        theta=categories_closed,
-        fill='toself',
-        fillcolor='rgba(31, 119, 180, 0.4)', # 藍色半透明填充
-        line=dict(color='#1f77b4', width=2),
-        marker=dict(size=8),
-        name='個股能力評分'
+        r=values_closed, theta=categories_closed, fill='toself',
+        fillcolor='rgba(31, 119, 180, 0.4)', line=dict(color='#1f77b4', width=2),
+        marker=dict(size=8), name='個股能力評分'
     ))
-
     fig.update_layout(
         polar=dict(
-            radialaxis=dict(
-                visible=True,
-                range=[0, 1], # 分數區間 0~1
-                tickfont=dict(size=10)
-            ),
-            angularaxis=dict(
-                tickfont=dict(size=12, color="white")
-            ),
-            bgcolor="rgba(0,0,0,0)" # 透明背景
+            radialaxis=dict(visible=True, range=[0, 1], tickfont=dict(size=10)),
+            angularaxis=dict(tickfont=dict(size=12, color="white")),
+            bgcolor="rgba(0,0,0,0)"
         ),
-        showlegend=False,
-        template="plotly_dark",
-        height=450,
-        margin=dict(l=80, r=80, t=20, b=20)
+        showlegend=False, template="plotly_dark", height=450, margin=dict(l=80, r=80, t=20, b=20)
     )
     return fig
 
@@ -353,7 +300,6 @@ def plot_financial_charts(q_inc):
     if 'Total Revenue' in q_inc.columns: fig1.add_trace(go.Bar(x=dates, y=q_inc['Total Revenue'], name="營收", marker_color='#1f77b4', opacity=0.7), secondary_y=False)
     if 'Net Income' in q_inc.columns: fig1.add_trace(go.Scatter(x=dates, y=q_inc['Net Income'], name="淨利", line=dict(color='#ff7f0e', width=3)), secondary_y=True)
     fig1.update_layout(title="營收與淨利", template="plotly_dark", height=350, margin=dict(l=20, r=20, t=40, b=20))
-
     fig2 = go.Figure()
     if 'Basic EPS' in q_inc.columns: fig2.add_trace(go.Bar(x=dates, y=q_inc['Basic EPS'], name="EPS", marker_color=['#00CC96' if v>=0 else '#EF5350' for v in q_inc['Basic EPS']]))
     fig2.update_layout(title="EPS 趨勢", template="plotly_dark", height=350, margin=dict(l=20, r=20, t=40, b=20))
@@ -377,7 +323,6 @@ def plot_extra_financials(q_bal, q_cash):
     liab = 'Total Liabilities Net Minority Interest' if 'Total Liabilities Net Minority Interest' in q_bal.columns else 'Total Liabilities'
     if liab in q_bal.columns: fig_bs.add_trace(go.Bar(x=dates, y=q_bal[liab], name='總債務', marker_color='#EF553B'))
     fig_bs.update_layout(title="資產負債結構", template="plotly_dark", height=350, barmode='group', margin=dict(l=20, r=20, t=40, b=20))
-
     fig_cf = go.Figure()
     if 'Operating Cash Flow' in q_cash.columns: fig_cf.add_trace(go.Scatter(x=dates, y=q_cash['Operating Cash Flow'], name='營運現金流', fill='tozeroy', line=dict(color='#00CC96')))
     if 'Capital Expenditure' in q_cash.columns: fig_cf.add_trace(go.Bar(x=dates, y=q_cash['Capital Expenditure'], name='資本支出', marker_color='#EF553B'))
@@ -393,14 +338,12 @@ def plot_technical_chart(df, ticker, period_name="日線", benchmarks=None):
     fig.add_trace(go.Scatter(x=df.index, y=df['BB_Upper'], mode='lines', line=dict(color='#1E90FF', width=1), showlegend=False), row=1, col=1)
     fig.add_trace(go.Scatter(x=df.index, y=df['BB_Lower'], mode='lines', line=dict(color='#1E90FF', width=1), fill='tonexty', fillcolor='rgba(30,144,255,0.1)', showlegend=False), row=1, col=1)
     fig.add_trace(go.Scatter(x=df.index, y=df['BB_Mid'], mode='lines', name='BB中線', line=dict(color='orange', width=1)), row=1, col=1)
-
     if benchmarks:
         start = df['Close'].iloc[0]; colors = {'SPY':'#FFFF00', 'SOXX':'#00FFFF', '^DJI':'#FF00FF', '^IXIC':'#ADFF2F'}
         for n, d in benchmarks.items():
             if d is not None:
                 aligned = d[df.index[0]:]
                 if not aligned.empty: fig.add_trace(go.Scatter(x=aligned.index, y=aligned*(start/aligned.iloc[0]), mode='lines', name=f'vs {n}', line=dict(color=colors.get(n,'gray'), width=2), opacity=0.8), row=1, col=1)
-
     colors = ['#00CC96' if r['Close']>=r['Open'] else '#EF553B' for i,r in df.iterrows()]
     fig.add_trace(go.Bar(x=df.index, y=df['Volume'], name='Volume', marker_color=colors), row=2, col=1)
     fig.add_trace(go.Scatter(x=df.index, y=df['MACD'], name='MACD', line=dict(color='#2962FF', width=1.5)), row=3, col=1)
@@ -418,7 +361,6 @@ def generate_strategy(score, current_price, ma50):
         if current_price > ma50: holder_advice = "⚠️ **續抱但謹慎**：留意技術面變化，嚴設停損。"
         else: holder_advice = "✂️ **減碼/出場**：優勢不再，換股操作。"
     else: holder_advice = "🏃 **趁反彈離場**：基本面與技術面雙弱。"
-
     buyer_advice = ""
     if score >= 7:
         if current_price > ma50: buyer_advice = "💰 **買進 (Buy)**：等待回測 MA50 或布林中線進場。"
@@ -427,7 +369,6 @@ def generate_strategy(score, current_price, ma50):
         if current_price > ma50: buyer_advice = "🤔 **短線操作**：僅適合技術面操作。"
         else: buyer_advice = "⛔ **觀望**：目前缺乏催化劑。"
     else: buyer_advice = "⛔ **遠離 (Avoid)**。"
-
     return holder_advice, buyer_advice
 
 # --- 主程式 ---
@@ -457,7 +398,7 @@ if st.session_state.analyzed and st.session_state.ticker:
             with c_p: st.plotly_chart(plot_holdings_pie(inst_pct, insider_pct), use_container_width=True)
             st.markdown("---"); st.subheader("🎯 分析師目標價"); st.plotly_chart(plot_analyst_forecast(hist_d, targets), use_container_width=True)
 
-        with tab2: # 輿情
+        with tab2:
             st.header(f"📰 {ticker} 近期市場輿情")
             if news_data:
                 for item in news_data:
@@ -481,39 +422,25 @@ if st.session_state.analyzed and st.session_state.ticker:
             c_g3, c_g4 = st.columns(2)
             c_g3.plotly_chart(f_bs, use_container_width=True)
             c_g4.plotly_chart(f_cf, use_container_width=True)
-
             st.markdown("---")
             st.subheader("🏆 加權評分 (滿分10)")
-
-         # --- 評分計算 (不簡化版：修復變數名稱、函數並適應金融業) ---
-
-            # 1. 自動偵測可用的利潤指標 (解決金融業 Operating Income 缺失問題)
             available_cols = q_inc.columns.tolist()
             if 'Operating Income' in available_cols and q_inc['Operating Income'].iloc[-1] != 0:
                 profit_col = 'Operating Income'
                 profit_label = "營益率"
             else:
-                # 金融業自動改採「淨利」計算利潤趨勢
                 profit_col = 'Net Income'
                 profit_label = "淨利率"
-
-            # 2. 核心數值獲取
             rev_now = safe_get(q_inc, 'Total Revenue')
             rev_g_yoy = safe_yoy_growth(q_inc, 'Total Revenue')
-
-            # 動態獲取利潤值
             op_inc_now = safe_get(q_inc, profit_col)
             op_margin_now = op_inc_now / rev_now if rev_now else 0
-
-            # 計算前一期利潤率用於 QoQ 對比
             if len(q_inc) >= 2:
                 prev_rev = q_inc.iloc[-2]['Total Revenue'] if 'Total Revenue' in q_inc.columns else 0
                 prev_profit = q_inc.iloc[-2][profit_col] if profit_col in q_inc.columns else 0
                 op_margin_prev = prev_profit / prev_rev if prev_rev else 0
             else:
                 op_margin_prev = 0
-
-            # 獲取其他財務指標
             gross_margin = safe_get(q_inc, 'Gross Profit') / rev_now if rev_now else 0
             net_income = safe_get(q_inc, 'Net Income')
             net_margin = net_income / rev_now if rev_now else 0
@@ -521,121 +448,70 @@ if st.session_state.analyzed and st.session_state.ticker:
             total_debt = safe_get(q_bal, 'Total Debt')
             debt_to_equity = total_debt / total_equity if total_equity else 999
             fcf = safe_get(q_cash, 'Operating Cash Flow') + safe_get(q_cash, 'Capital Expenditure')
-            eps_g_qoq = safe_growth(q_inc, 'Basic EPS')  #
+            eps_g_qoq = safe_growth(q_inc, 'Basic EPS')
             roe = (net_income / total_equity) * 100 if total_equity else 0
-
-            # 3. 執行加權評分 (總分 10 分)
-            # --- v21.0 全產業平衡評分標準 (不再拘泥於成長股標準) ---
-
             score = 0; res = []
-
-            # 1. 收益修正 (維持分析師共識)
             p = 1.0 if rev_score else 0; score += p
             res.append(["收益修正", p, "1.0", "有" if p else "無", "分析師看多"])
-
-            # 2. 獲利驚喜 (Beat預期)
             p = 1.0 if sur_score >= 1 else 0; score += p
             res.append(["獲利驚喜", p, "1.0", sur_text, "Beat預期"])
-
-            # 3. 營收成長 (YoY) - 標準放寬：12%即滿分，5%給半分
-            p = 1.0 if rev_g_yoy > 0.12 else (0.5 if rev_g_yoy > 0.05 else 0)
-            score += p
+            p = 1.0 if rev_g_yoy > 0.12 else (0.5 if rev_g_yoy > 0.05 else 0); score += p
             res.append(["營收成長", p, "1.0", f"{rev_g_yoy:.1%}", "YoY成長"])
-
-            # 4. 獲利成長 (QoQ) - 標準放寬：10%即滿分，3%給半分
-            p = 1.0 if eps_g_qoq > 0.10 else (0.5 if eps_g_qoq > 0.03 else 0)
-            score += p
+            p = 1.0 if eps_g_qoq > 0.10 else (0.5 if eps_g_qoq > 0.03 else 0); score += p
             res.append(["獲利成長", p, "1.0", f"{eps_g_qoq:+.1%}", "QoQ成長"])
-
-            # 5. 毛利率 - 標準放寬：40%即滿分，20%給半分
-            p = 1.0 if gross_margin > 0.40 else (0.5 if gross_margin > 0.20 else 0)
-            score += p
+            p = 1.0 if gross_margin > 0.40 else (0.5 if gross_margin > 0.20 else 0); score += p
             res.append(["毛利率", p, "1.0", f"{gross_margin:.1%}", "定價能力"])
-
-            # 6. 淨利率 - 標準放寬：15%即滿分，8%給半分
-            p = 1.0 if net_margin > 0.15 else (0.5 if net_margin > 0.08 else 0)
-            score += p
+            p = 1.0 if net_margin > 0.15 else (0.5 if net_margin > 0.08 else 0); score += p
             res.append(["淨利率", p, "1.0", f"{net_margin:.1%}", "獲利體質"])
-
-            # 7. ROE (修正 GOOGL 的 0 分問題)
-            # 標準修改：標普500平均約12-15%，我們設定15%滿分，8%即給半分
-            p = 1.0 if roe > 15 else (0.5 if roe > 8 else 0)
-            score += p
+            p = 1.0 if roe > 15 else (0.5 if roe > 8 else 0); score += p
             res.append(["ROE", p, "1.0", f"{roe:.1f}%", "股東權益"])
-
-            # 8. 利潤趨勢 (修正 image_6dc975.jpg 中的 0 分問題)
-            # 邏輯更新：即使 QoQ 縮減，但只要當前利潤率仍高於 25%，依然給半分獎勵獲利體質
-            p = 1.0 if op_margin_now > op_margin_prev else (0.5 if op_margin_now > 0.25 else 0)
-            score += p
+            p = 1.0 if op_margin_now > op_margin_prev else (0.5 if op_margin_now > 0.25 else 0); score += p
             res.append([f"利潤趨勢({profit_label})", p, "1.0", f"{op_margin_now:.1%}", "QoQ擴大" if op_margin_now > op_margin_prev else "高水準維持"])
-
-            # 9. 現金流量
             p = 1.0 if fcf > 0 else 0; score += p
             res.append(["現金流量", p, "1.0", f"${fcf/1e6:,.0f}M", "自由現金流"])
-
-            # 10. 負債比 (財務槓桿)
-            p = 1.0 if debt_to_equity < 1.0 else (0.5 if debt_to_equity < 2.5 else 0)
-            score += p
+            p = 1.0 if debt_to_equity < 1.0 else (0.5 if debt_to_equity < 2.5 else 0); score += p
             res.append(["負債比", p, "1.0", f"{debt_to_equity:.2f}", "財務槓桿"])
-
-            # 4. 輸出評分表格
             c_sc, c_dt = st.columns([1, 2])
-            
             with c_sc:
-
                 st.metric("總分", f"{score:.1f} / 10")
-
                 if score>=7: st.success("🟢 強烈推薦")
-
                 elif score>=4: st.warning("🟡 持有")
-
                 else: st.error("🔴 賣出")
-
                 st.plotly_chart(plot_radar_chart(res), use_container_width=True)
-
             with c_dt:
-
                 st.dataframe(pd.DataFrame(res, columns=["指標","得分","權重","數據","評註"]), use_container_width=True, hide_index=True)
 
-        with tab4: # 走勢
+        with tab4:
             df_daily = calculate_technical_indicators(hist_d, False)
             hold, buy = generate_strategy(score, df_daily['Close'].iloc[-1], df_daily['MA50'].iloc[-1])
             st.markdown("### 🧠 操作建議"); c_h, c_b = st.columns(2); c_h.info(f"持有者: {hold}"); c_b.success(f"空手者: {buy}")
-
             with st.expander("⚙️ 疊加大盤"):
                 c1, c2, c3, c4 = st.columns(4)
                 s_spy = c1.checkbox("疊加標普500 (SPY)")
                 show_soxx = c2.checkbox("疊加費半 (SOXX)")
                 show_dji = c3.checkbox("疊加道瓊 (DJI)")
                 show_ixic = c4.checkbox("疊加納指 (IXIC)")
-
             benchs_d = {}
             def fetch(s): return get_benchmark_data(s, "1y", "1d")
-
             if s_spy: benchs_d['SPY'] = fetch('SPY')
             if show_soxx: benchs_d['SOXX'] = fetch('SOXX')
             if show_dji: benchs_d['^DJI'] = fetch('^DJI')
             if show_ixic: benchs_d['^IXIC'] = fetch('^IXIC')
-
             t1, t2 = st.tabs(["日線圖", "週線圖"])
             with t1:
                 st.plotly_chart(plot_technical_chart(df_daily, ticker, "日線", benchs_d), use_container_width=True)
             with t2:
                 st.plotly_chart(plot_technical_chart(calculate_technical_indicators(hist_w, True), ticker, "週線"), use_container_width=True)
-with tab5:
-            # --- 第一步：定義「計算大腦」(內部函數) ---
+
+        with tab5:
             def calculate_max_pain_logic(ticker_obj, expiry):
-                """計算莊家最賺錢的點位 (Max Pain)"""
                 try:
                     options = ticker_obj.option_chain(expiry)
                     calls, puts = options.calls, options.puts
                     strikes = sorted(set(calls['strike']).union(set(puts['strike'])))
-                    
                     pain_results = []
                     for s in strikes:
-                        # 股價落在 s 時，Call 賣方的痛苦值
                         c_p = (s - calls[calls['strike'] < s]['strike']) * calls[calls['strike'] < s]['openInterest']
-                        # 股價落在 s 時，Put 賣方的痛苦值
                         p_p = (puts[puts['strike'] > s]['strike'] - s) * puts[puts['strike'] > s]['openInterest']
                         pain_results.append(c_p.sum() + p_p.sum())
                     return strikes[np.argmin(pain_results)]
@@ -643,11 +519,7 @@ with tab5:
                     return None
 
             st.header(f"🔮 {ticker} 期權鏈與波動率分析")
-            
-            # 使用主程式已經建立好的 yfinance 物件
             tk = yf.Ticker(ticker)
-
-            # 小白百科全書
             with st.expander("📖 期權小白必讀：專業術語白話文"):
                 st.markdown("""
                 * **1. 最大痛點 (Max Pain)**：莊家（大戶）最希望股價結算的位子。因為在那裡，大戶賠最少，散戶虧最多。股價常會向此靠攏。
@@ -655,70 +527,39 @@ with tab5:
                 * **3. 隱含波動率 (IV)**：市場預期未來會『震多大』。**IV 越高，期權越貴**（像颱風天的菜價）。
                 * **4. 多空比 (PCR)**：看跌期權除以看漲期權。**> 1 代表大家很怕跌**（都在買保險）；**< 0.7 代表大家都在搶漲**。
                 """)
-
             try:
-                # 取得到期日
                 expiry_dates = tk.options
                 if not expiry_dates:
                     st.warning("⚠️ 該股票目前無期權交易數據。")
                 else:
                     selected_expiry = st.selectbox("📅 選擇結算日期 (越近的代表短線主力動向)", expiry_dates)
-                    
-                    # 抓取期權鏈數據
                     opts = tk.option_chain(selected_expiry)
                     calls, puts = opts.calls, opts.puts
-                    # 獲取最新股價 (從之前抓過的歷史數據中取最後一筆)
                     current_price = hist_d['Close'].iloc[-1]
-                    
-                    # --- 數據運算 ---
-                    # 修正：呼叫正確的函數名稱
                     max_pain = calculate_max_pain_logic(tk, selected_expiry)
                     pcr = puts['openInterest'].sum() / calls['openInterest'].sum()
-                    
-                    # 計算平均 IV
                     avg_iv = (calls['impliedVolatility'].mean() + puts['impliedVolatility'].mean()) / 2 * 100
-                    
-                    # 壓力與支撐 (OI 最大值)
                     res_strike = calls.loc[calls['openInterest'].idxmax(), 'strike']
                     sup_strike = puts.loc[puts['openInterest'].idxmax(), 'strike']
-
-                    # --- 儀表板 ---
                     st.markdown("---")
                     c1, c2, c3, c4 = st.columns(4)
-                    
                     c1.metric("當前股價", f"${current_price:.2f}")
                     c2.metric("最大痛點", f"${max_pain}" if max_pain else "N/A")
                     c3.metric("多空情緒 (PCR)", f"{pcr:.2f}")
                     c4.metric("隱含波動率 (IV)", f"{avg_iv:.1f}%")
-
-                    # 警示區
                     if avg_iv > 60:
                         st.error(f"⚠️ **IV 過高 ({avg_iv:.1f}%)**：目前期權價格極貴，小心『波動率衰減』。")
                     elif avg_iv < 30:
                         st.success(f"✅ **IV 偏低 ({avg_iv:.1f}%)**：目前市場平靜，期權相對便宜。")
-
                     st.write(f"🛑 **上方重壓區：${res_strike}** | 🟢 **下方強支撐：${sup_strike}**")
-
-                    # --- 視覺化 OI 分佈圖 ---
                     fig_oi = go.Figure()
                     fig_oi.add_trace(go.Bar(x=calls['strike'], y=calls['openInterest'], name='看漲 OI (Call)', marker_color='#26a69a'))
                     fig_oi.add_trace(go.Bar(x=puts['strike'], y=puts['openInterest'], name='看跌 OI (Put)', marker_color='#ef5350'))
-                    
                     fig_oi.add_vline(x=current_price, line_dash="dash", line_color="yellow", annotation_text="現價")
                     if max_pain:
                         fig_oi.add_vline(x=max_pain, line_dash="dot", line_color="white", annotation_text="Max Pain")
-                    
-                    fig_oi.update_layout(
-                        title=f"{ticker} 籌碼攻防圖 ({selected_expiry})",
-                        xaxis_title="履約價 (Strike)",
-                        yaxis_title="未平倉合約數 (OI)",
-                        barmode='group',
-                        template="plotly_dark",
-                        height=500
-                    )
+                    fig_oi.update_layout(title=f"{ticker} 籌碼攻防圖 ({selected_expiry})", xaxis_title="履約價 (Strike)", yaxis_title="未平倉合約數 (OI)", barmode='group', template="plotly_dark", height=500)
                     st.plotly_chart(fig_oi, use_container_width=True)
-
-                    # --- 股神一鍵診斷 ---
                     st.markdown("### 🏹 股神實戰診斷")
                     if max_pain:
                         if current_price > max_pain + 10:
@@ -727,15 +568,12 @@ with tab5:
                             st.info(f"當前股價低於最大痛點 (${max_pain})，結算前大戶有動力『向上拉抬』。")
                         else:
                             st.success("股價目前處於莊家預期範圍內，走勢相對穩定。")
-
             except Exception as e:
                 st.error(f"期權分析失敗: {e}")
 
 else:
     st.info("👈 請輸入代碼")
-
     col1, col2 = st.columns(2)
-
     with col1:
         st.subheader("📖 使用說明")
         st.markdown("""
@@ -747,28 +585,13 @@ else:
             - **📊 財報 & 評分**：檢查公司的獲利能力與財務健康度。
             - **📈 雙週期走勢 & 戰術**：結合技術指標給予操作建議。
         4. **如何在手機端使用**：
-            -  iOS (Safari 瀏覽器):
-            1. 進入 https://5f4cx8cawucvqrc42s6o6q.streamlit.app/
-            2. 點擊瀏覽器底部的 **「分享」** 圖示 (方框箭頭朝上)。
-            3. 往下滑動找到並點擊 **「加入主畫面」**。
-            4. 點擊右上角的 **「新增」**，桌面就會出現專屬圖示！
-            -  Android (Chrome 瀏覽器):
-            1. 進入 https://5f4cx8cawucvqrc42s6o6q.streamlit.app/
-            2. 點擊瀏覽器右上角的 **「三個點」** 選單。
-            3. 選擇 **「安裝應用程式」** 或 **「將網頁加入主畫面」**。
-            4. 點擊 **「新增」** 後，即可在手機桌面一鍵啟動！
-            - **💡 小撇步**: 加入主畫面後，操作起來會像真正的 App 一樣全螢幕運行，體驗更順暢喔！
-        5. 如何在電腦端使用：
-            - ** 永久保存 https://5f4cx8cawucvqrc42s6o6q.streamlit.app/**:
-            """)
+            - iOS (Safari 瀏覽器): 加入主畫面。
+            - Android (Chrome 瀏覽器): 安裝應用程式。
+        """)
     with col2:
         st.subheader("📜 更新日誌")
         st.markdown("""
         - **v14.0(更新進行中)**：新增Gemini作為投資助理。
-        - **v13.13**：新增搜尋紀錄(至多6筆)與清空歷史紀錄功能。(2026/01/10)
-        - **v13.12**：新增評分雷達圖與修正過於嚴苛的評分標準。(2026/01/10)
-        - **v13.11**：修復金融業報錯問題。(2026/01/10)
-        - **v13.10**：於分析師預測價旁標註出潛在漲跌幅空間百分比。(2026/01/08)
-        - **v13.9**：新增首頁使用說明與更新日誌。
-        - **v13.8**：側邊欄新增「熱門市場標的」快速點擊按鈕。
+        - **v13.13**：新增搜尋紀錄(至多6筆)。
+        - **v13.12**：新增評分雷達圖。
         """)
